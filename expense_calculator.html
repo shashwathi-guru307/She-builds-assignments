@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Expense Calculator</title>
+<style>
+  :root {
+    --bg: #f3f5f4;
+    --card: #ffffff;
+    --ink: #16302b;
+    --muted: #5c6b67;
+    --line: #d8ddda;
+    --teal: #0f6e56;
+    --teal-dark: #085041;
+    --amber: #ba7517;
+    --red: #a32d2d;
+    --green: #3b6d11;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--teal-dark);
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--teal);
+  }
+
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.9; }
+  button:active { opacity: 0.75; }
+
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-secondary { background: #eaf1ee; color: var(--teal-dark); }
+  .btn-block { width: 100%; margin-top: 12px; }
+
+  .error {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: 6px;
+    display: none;
+  }
+
+  #incomeCard.locked { opacity: 0.6; }
+  #incomeCard.locked input { pointer-events: none; background: #f3f3f0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.amount, th.amount { text-align: right; }
+  tr:last-child td { border-bottom: none; }
+
+  .empty-note { color: var(--muted); font-size: 13px; font-style: italic; }
+
+  .summary-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .summary-line:last-of-type { border-bottom: none; }
+  .summary-line.total { font-weight: 600; font-size: 16px; padding-top: 12px; }
+
+  .bar-track {
+    height: 6px;
+    background: #eef0ee;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .bar-fill { height: 100%; background: var(--teal); border-radius: 3px; }
+
+  .savings-banner {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .savings-good { background: #eaf3de; color: var(--green); }
+  .savings-bad { background: #fcebeb; color: var(--red); }
+  .savings-even { background: #faeeda; color: var(--amber); }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--red);
+    font-size: 13px;
+    padding: 2px 6px;
+    font-weight: 400;
+  }
+
+  #summaryCard { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Personal Expense Calculator</h1>
+  <p class="subtitle">Enter your income, add expenses, and get a categorized summary.</p>
+
+  <!-- Step 1: Income -->
+  <div class="card" id="incomeCard">
+    <h2>1. Monthly income</h2>
+    <label for="incomeInput">Income amount (₹)</label>
+    <input type="number" id="incomeInput" placeholder="e.g. 25000" min="0" step="0.01">
+    <div class="error" id="incomeError">Please enter a valid, non-negative income.</div>
+    <button class="btn-primary btn-block" id="setIncomeBtn">Set income</button>
+  </div>
+
+  <!-- Step 2: Add expenses (loop) -->
+  <div class="card" id="expenseCard" style="display:none;">
+    <h2>2. Add expenses</h2>
+    <div class="row">
+      <div>
+        <label for="expenseAmount">Amount (₹)</label>
+        <input type="number" id="expenseAmount" placeholder="e.g. 500" min="0" step="0.01">
+      </div>
+      <div>
+        <label for="expenseCategory">Category</label>
+        <select id="expenseCategory">
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Bills">Bills</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+    </div>
+    <div class="error" id="expenseError">Please enter a valid, non-negative amount.</div>
+    <button class="btn-primary btn-block" id="addExpenseBtn">Add expense</button>
+
+    <table style="margin-top:18px;" id="expenseTable">
+      <thead>
+        <tr><th>Category</th><th class="amount">Amount</th><th></th></tr>
+      </thead>
+      <tbody id="expenseBody">
+        <tr><td colspan="3" class="empty-note">No expenses added yet.</td></tr>
+      </tbody>
+    </table>
+
+    <button class="btn-secondary btn-block" id="generateBtn">Generate summary report</button>
+  </div>
+
+  <!-- Step 3: Summary -->
+  <div class="card" id="summaryCard">
+    <h2>3. Summary report</h2>
+    <div class="summary-line"><span>Income</span><span id="sumIncome"></span></div>
+    <div id="categoryBreakdown"></div>
+    <div class="summary-line total"><span>Total expenses</span><span id="sumExpenses"></span></div>
+    <div class="summary-line total"><span>Savings</span><span id="sumSavings"></span></div>
+    <div class="savings-banner" id="savingsBanner"></div>
+  </div>
+
+</div>
+
+<script>
+  // ----- State (equivalent to variables in the pseudocode) -----
+  let income = 0;
+  let totalExpenses = 0;
+  const categories = { Food: 0, Transport: 0, Bills: 0, Entertainment: 0, Others: 0 };
+  const expenseLog = []; // keeps individual entries for the table
+
+  // ----- DOM references -----
+  const incomeInput = document.getElementById('incomeInput');
+  const incomeError = document.getElementById('incomeError');
+  const incomeCard = document.getElementById('incomeCard');
+  const expenseCard = document.getElementById('expenseCard');
+  const expenseAmount = document.getElementById('expenseAmount');
+  const expenseCategory = document.getElementById('expenseCategory');
+  const expenseError = document.getElementById('expenseError');
+  const expenseBody = document.getElementById('expenseBody');
+  const summaryCard = document.getElementById('summaryCard');
+
+  // ----- Function: get_income() -----
+  function getIncome() {
+    const value = parseFloat(incomeInput.value);
+    if (isNaN(value) || value < 0) {
+      incomeError.style.display = 'block';
+      return;
+    }
+    incomeError.style.display = 'none';
+    income = value;
+
+    incomeCard.classList.add('locked');
+    expenseCard.style.display = 'block';
+    document.getElementById('setIncomeBtn').textContent = 'Income set ✓';
+  }
+
+  // ----- Function: add_expense() -----
+  function addExpense() {
+    const amount = parseFloat(expenseAmount.value);
+    if (isNaN(amount) || amount < 0) {
+      expenseError.style.display = 'block';
+      return;
+    }
+    expenseError.style.display = 'none';
+
+    const category = expenseCategory.value;
+
+    // Condition: known category vs Others (dropdown already restricts this,
+    // but the check mirrors the pseudocode's IF/ELSE for categorization)
+    if (category in categories) {
+      categories[category] += amount;
+    } else {
+      categories.Others += amount;
+    }
+
+    totalExpenses += amount;
+    expenseLog.push({ category, amount });
+
+    renderExpenseTable();
+    expenseAmount.value = '';
+    expenseAmount.focus();
+  }
+
+  // ----- Loop: render each logged expense as a table row -----
+  function renderExpenseTable() {
+    if (expenseLog.length === 0) {
+      expenseBody.innerHTML = '<tr><td colspan="3" class="empty-note">No expenses added yet.</td></tr>';
+      return;
+    }
+    expenseBody.innerHTML = '';
+    expenseLog.forEach((entry, index) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${entry.category}</td>
+        <td class="amount">₹${entry.amount.toFixed(2)}</td>
+        <td style="text-align:right;">
+          <button class="remove-btn" data-index="${index}">Remove</button>
+        </td>`;
+      expenseBody.appendChild(row);
+    });
+
+    // Attach remove handlers
+    expenseBody.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => removeExpense(parseInt(btn.dataset.index)));
+    });
+  }
+
+  function removeExpense(index) {
+    const entry = expenseLog[index];
+    categories[entry.category] -= entry.amount;
+    totalExpenses -= entry.amount;
+    expenseLog.splice(index, 1);
+    renderExpenseTable();
+  }
+
+  // ----- Function: calculate_savings() -----
+  function calculateSavings(incomeVal, totalExpensesVal) {
+    return incomeVal - totalExpensesVal;
+  }
+
+  // ----- Function: display_summary() -----
+  function displaySummary() {
+    const savings = calculateSavings(income, totalExpenses);
+
+    document.getElementById('sumIncome').textContent = `₹${income.toFixed(2)}`;
+    document.getElementById('sumExpenses').textContent = `₹${totalExpenses.toFixed(2)}`;
+    document.getElementById('sumSavings').textContent = `₹${savings.toFixed(2)}`;
+
+    // Loop through categories dict to build the breakdown
+    const breakdown = document.getElementById('categoryBreakdown');
+    breakdown.innerHTML = '';
+    for (const [category, amount] of Object.entries(categories)) {
+      if (amount > 0) {
+        const percent = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+        const line = document.createElement('div');
+        line.style.marginBottom = '10px';
+        line.innerHTML = `
+          <div class="summary-line" style="border-bottom:none; padding-bottom:0;">
+            <span>${category}</span>
+            <span>₹${amount.toFixed(2)} (${percent.toFixed(1)}%)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${percent}%;"></div></div>`;
+        breakdown.appendChild(line);
+      }
+    }
+
+    // Condition: overspending / break-even / within budget
+    const banner = document.getElementById('savingsBanner');
+    if (savings < 0) {
+      banner.className = 'savings-banner savings-bad';
+      banner.textContent = '⚠ Warning: you are overspending this month.';
+    } else if (savings === 0) {
+      banner.className = 'savings-banner savings-even';
+      banner.textContent = 'You broke even this month.';
+    } else {
+      banner.className = 'savings-banner savings-good';
+      banner.textContent = '✔ You\'re within budget. Keep it up!';
+    }
+
+    summaryCard.style.display = 'block';
+    summaryCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ----- Event bindings -----
+  document.getElementById('setIncomeBtn').addEventListener('click', getIncome);
+  document.getElementById('addExpenseBtn').addEventListener('click', addExpense);
+  document.getElementById('generateBtn').addEventListener('click', displaySummary);
+
+  incomeInput.addEventListener('keypress', e => { if (e.key === 'Enter') getIncome(); });
+  expenseAmount.addEventListener('keypress', e => { if (e.key === 'Enter') addExpense(); });
+</script>
+</body>
+</html>
